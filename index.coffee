@@ -187,7 +187,6 @@ main = ->
 
   create = ->
     console.log("create function started")
-    console.log("%chttps://github.com/hyspace/flappy", "color: black; font-size: x-large");
     ratio = window.innerWidth / window.innerHeight
     document.querySelector('#github').innerHTML = githubHtml if ratio > 1.15 or ratio < 0.7
     document.querySelector('#loading').style.display = 'none'
