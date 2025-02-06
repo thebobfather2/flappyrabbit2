@@ -224,7 +224,6 @@ main = ->
     # Add bird
     bird = game.add.sprite(0, 0, "bird")
     bird.anchor.setTo 0.5, 0.5
-    bird.scale.setTo(0.1, 0.1)  # Scale down to 10% (1/10) to keep the same size
     bird.animations.add "fly", [
       0
       1
