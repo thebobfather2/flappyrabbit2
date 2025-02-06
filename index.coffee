@@ -225,6 +225,7 @@ main = ->
     bird = game.add.sprite(0, 0, "bird")
     bird.anchor.setTo 0.5, 0.5
     bird.scale.setTo(0.1, 0.1)  # Scale down to 10% (1/10) to keep the same size
+    console.log("Bird scale:", bird.scale.x, bird.scale.y)  // Log the bird's scale
     bird.animations.add "fly", [
       0
       1
