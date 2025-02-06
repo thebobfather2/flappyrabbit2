@@ -4,7 +4,7 @@ GRAVITY = 1100
 FLAP = 320
 SPAWN_RATE = 1 / 1200
 OPENING = 100
-SCALE = 1
+SCALE = 10
 
 HEIGHT = 384
 WIDTH = 288
@@ -159,8 +159,8 @@ main = ->
       spritesheet:
         bird: [
           "assets/bird.png"
-          360
-          260
+          36
+          26
         ]
 
       image:
