@@ -1,182 +1,159 @@
-DEBUG = false
-SPEED = 1600  // 10x
-GRAVITY = 11000  // 10x
-FLAP = 3200  // 10x
-SPAWN_RATE = 1 / 1200
-OPENING = 1000  // 10x
-SCALE = 10  // 10x
+DEBUG = false;
+SCALE = 10; // Scaling factor
+SPEED = 1600; // 10x original speed
+GRAVITY = 11000; // 10x original gravity
+FLAP = 3200; // 10x original flap force
+SPAWN_RATE = 1 / 120; // Adjusted spawn rate
+OPENING = 1000; // 10x original pipe opening
 
-HEIGHT = 3840  // 10x
-WIDTH = 2880  // 10x
-GAME_HEIGHT = 3360  // 10x
-GROUND_HEIGHT = 640  // 10x
-GROUND_Y = HEIGHT - GROUND_HEIGHT
+HEIGHT = 3840; // 10x original height
+WIDTH = 2880; // 10x original width
+GAME_HEIGHT = 3360;
+GROUND_HEIGHT = 640;
+GROUND_Y = HEIGHT - GROUND_HEIGHT;
 
-parent = document.querySelector("#screen")
-gameStarted = undefined
-gameOver = undefined
+parent = document.querySelector("#screen");
+gameStarted = undefined;
+gameOver = undefined;
 
-deadTubeTops = []
-deadTubeBottoms = []
-deadInvs = []
+deadTubeTops = [];
+deadTubeBottoms = [];
+deadInvs = [];
 
-bg = null
-tubes = null
-invs = null
-bird = null
-ground = null
+bg = null;
+tubes = null;
+invs = null;
+bird = null;
+ground = null;
+score = null;
+scoreText = null;
+instText = null;
+gameOverText = null;
 
-score = null
-scoreText = null
-instText = null
-gameOverText = null
+flapSnd = null;
+scoreSnd = null;
+hurtSnd = null;
+fallSnd = null;
+swooshSnd = null;
 
-flapSnd = null
-scoreSnd = null
-hurtSnd = null
-fallSnd = null
-swooshSnd = null
+tubesTimer = null;
 
-tubesTimer = null
+githubHtml = `<iframe src="http://ghbtns.com/github-btn.html?user=hyspace&repo=flappy&type=watch&count=true&size=large"
+  allowtransparency="true" frameborder="0" scrolling="0" width="150" height="30"></iframe>`;
 
-floor = Math.floor
+floor = Math.floor;
 
-main = ->
-  spawntube = (openPos, flipped) ->
-    tube = null
-    tubeKey = if flipped then "tubeTop" else "tubeBottom"
-    if flipped
-      tubeY = floor(openPos - OPENING / 2 - 3200)  // 10x
-    else
-      tubeY = floor(openPos + OPENING / 2)
+main = () => {
+  preload = () => {
+    assets = {
+      spritesheet: {
+        bird: ["assets/bird.png", 1080, 260], // Updated to match your new image size
+      },
+      image: {
+        tubeTop: ["assets/tube1.png"],
+        tubeBottom: ["assets/tube2.png"],
+        ground: ["assets/ground.png"],
+        bg: ["assets/bg.png"],
+      },
+      audio: {
+        flap: ["assets/sfx_wing.mp3"],
+        score: ["assets/sfx_point.mp3"],
+        hurt: ["assets/sfx_hit.mp3"],
+        fall: ["assets/sfx_die.mp3"],
+        swoosh: ["assets/sfx_swooshing.mp3"],
+      },
+    };
+
+    Object.keys(assets).forEach((type) => {
+      Object.keys(assets[type]).forEach((id) => {
+        game.load[type].apply(game.load, [id].concat(assets[type][id]));
+      });
+    });
+  };
+
+  create = () => {
+    console.log("Game started");
+    game.stage.scaleMode = Phaser.StageScaleMode.SHOW_ALL;
+    game.stage.scale.setScreenSize(true);
+    game.world.width = WIDTH;
+    game.world.height = HEIGHT;
     
-    if deadTubeTops.length > 0 and tubeKey == "tubeTop"
-      tube = deadTubeTops.pop().revive()
-      tube.reset(game.world.width, tubeY)
-    else if deadTubeBottoms.length > 0 and tubeKey == "tubeBottom"
-      tube = deadTubeBottoms.pop().revive()
-      tube.reset(game.world.width, tubeY)
-    else
-      tube = tubes.create(game.world.width, tubeY, tubeKey)
-      tube.body.allowGravity = false
+    // Background
+    bg = game.add.tileSprite(0, 0, WIDTH, HEIGHT, "bg");
 
-    tube.body.velocity.x = -SPEED
-    tube.scale.setTo(SCALE, SCALE)  // Scale up
-    tube
+    // Pipes
+    tubes = game.add.group();
+    invs = game.add.group();
 
-  spawntubes = ->
-    tubes.forEachAlive (tube) ->
-      if tube.x + tube.width < game.world.bounds.left
-        deadTubeTops.push tube.kill() if tube.key == "tubeTop"
-        deadTubeBottoms.push tube.kill() if tube.key == "tubeBottom"
+    // Bird setup
+    bird = game.add.sprite(WIDTH * 0.3, HEIGHT / 2, "bird");
+    bird.anchor.setTo(0.5, 0.5);
+    bird.animations.add("fly", [0, 1, 2], 10, true);
+    bird.body.collideWorldBounds = true;
+    bird.body.setPolygon(240,10, 340,160, 300,320, 200,240, 120,340, 20,120, 140,20);
+    bird.scale.setTo(SCALE, SCALE);
     
-    invs.forEachAlive (inv) ->
-      deadInvs.push inv.kill() if inv.x + inv.width < game.world.bounds.left
+    // Ground
+    ground = game.add.tileSprite(0, GROUND_Y, WIDTH, GROUND_HEIGHT, "ground");
+    ground.tileScale.setTo(SCALE, SCALE);
 
-    tubeY = game.world.height / 2 + (Math.random()-0.5) * game.world.height * 0.2
-    bottube = spawntube(tubeY)
-    toptube = spawntube(tubeY, true)
-    
-    if deadInvs.length > 0
-      inv = deadInvs.pop().revive().reset(toptube.x + toptube.width / 2, 0)
-    else
-      inv = invs.create(toptube.x + toptube.width / 2, 0)
-      inv.width = 20  // 10x
-      inv.height = game.world.height
-      inv.body.allowGravity = false
-    inv.body.velocity.x = -SPEED
+    // Score display
+    scoreText = game.add.text(WIDTH / 2, HEIGHT / 4, "", { font: "160px 'Press Start 2P'", fill: "#fff", stroke: "#430", strokeThickness: 40, align: "center" });
+    scoreText.anchor.setTo(0.5, 0.5);
 
-  addScore = (_, inv) ->
-    invs.remove inv
-    score += 1
-    scoreText.setText score
-    scoreSnd.play()
+    // Instructions text
+    instText = game.add.text(WIDTH / 2, HEIGHT - HEIGHT / 4, "TOUCH TO FLAP", { font: "80px 'Press Start 2P'", fill: "#fff", stroke: "#430", strokeThickness: 20, align: "center" });
+    instText.anchor.setTo(0.5, 0.5);
 
-  setGameOver = ->
-    gameOver = true
-    bird.body.velocity.y = 1000 if bird.body.velocity.y > 0
-    bird.animations.stop()
-    bird.frame = 1
-    instText.setText "TOUCH\nTO TRY AGAIN"
-    instText.renderable = true
-    
-    gameOverText.setText "GAME OVER\nHIGH SCORE\n" + score
-    gameOverText.renderable = true
-    
-    tubes.forEachAlive (tube) -> tube.body.velocity.x = 0
-    invs.forEach (inv) -> inv.body.velocity.x = 0
-    
-    game.time.events.remove(tubesTimer)
-    game.time.events.add 1000, ->
-      game.input.onTap.addOnce -> reset(); swooshSnd.play()
+    // Game over text
+    gameOverText = game.add.text(WIDTH / 2, HEIGHT / 2, "", { font: "160px 'Press Start 2P'", fill: "#fff", stroke: "#430", strokeThickness: 40, align: "center" });
+    gameOverText.anchor.setTo(0.5, 0.5);
+    gameOverText.scale.setTo(SCALE, SCALE);
 
-    hurtSnd.play()
+    // Controls
+    game.input.onDown.add(flap);
+    reset();
+  };
 
-  flap = ->
-    start() unless gameStarted
-    unless gameOver
-      bird.body.gravity.y = 0
-      bird.body.velocity.y = -1000
-      tween = game.add.tween(bird.body.velocity).to(y:-FLAP, 25, Phaser.Easing.Bounce.In, true)
-      tween.onComplete.add -> bird.body.gravity.y = GRAVITY
-      flapSnd.play()
+  update = () => {
+    console.log("Bird position:", bird.x, bird.y);
+    console.log("Bird visible:", bird.visible);
 
-  preload = ->
-    assets =
-      spritesheet:
-        bird: ["assets/bird.png", 360, 260]  // 10x
-      image:
-        tubeTop: ["assets/tube1.png"]
-        tubeBottom: ["assets/tube2.png"]
-        ground: ["assets/ground.png"]
-        bg: ["assets/bg.png"]
-    
-    Object.keys(assets).forEach (type) ->
-      Object.keys(assets[type]).forEach (id) ->
-        game.load[type].apply game.load, [id].concat(assets[type][id])
+    if (gameStarted) {
+      if (!gameOver) {
+        bird.angle = Math.min(90, Math.max(-30, (90 * (FLAP + bird.body.velocity.y) / FLAP) - 180));
+        bird.animations.play();
+        game.physics.overlap(bird, tubes, setGameOver);
+        game.physics.overlap(bird, invs, addScore);
+        setGameOver() if bird.body.bottom >= GROUND_Y;
+      } else {
+        bird.body.velocity.y = 0;
+        bird.body.allowGravity = false;
+      }
+    } else {
+      bird.y = (HEIGHT / 2) + 80 * Math.cos(game.time.now / 200);
+      bird.angle = 0;
+    }
+    ground.tilePosition.x -= game.time.physicsElapsed * SPEED;
+  };
 
-  create = ->
-    game.world.width = WIDTH
-    game.world.height = HEIGHT
-    
-    bg = game.add.tileSprite(0, 0, WIDTH, HEIGHT, 'bg')
-    bg.scale.setTo(SCALE, SCALE)
-    
-    tubes = game.add.group()
-    invs = game.add.group()
-    
-    bird = game.add.sprite(0, 0, "bird")
-    bird.anchor.setTo(0.5, 0.5)
-    bird.animations.add "fly", [0,1,2], 10, true
-    bird.body.collideWorldBounds = true
-    bird.scale.setTo(SCALE, SCALE)
-    
-    ground = game.add.tileSprite(0, GROUND_Y, WIDTH, GROUND_HEIGHT, "ground")
-    ground.tileScale.setTo(SCALE, SCALE)
-    
-    reset()
+  reset = () => {
+    gameStarted = false;
+    gameOver = false;
+    bird.body.allowGravity = false;
+    bird.reset(WIDTH * 0.3, HEIGHT / 2);
+    bird.angle = 0;
+    bird.animations.play("fly");
+    score = 0;
+    scoreText.setText("Flappy Bird");
+    instText.setText("TOUCH TO FLAP");
+  };
 
-  reset = ->
-    gameStarted = false
-    gameOver = false
-    score = 0
-    scoreText.setText "Flappy Bird"
-    instText.setText "TOUCH TO FLAP\nbird WINGS"
-    gameOverText.renderable = false
-    bird.body.allowGravity = false
-    bird.reset game.world.width * 0.3, game.world.height / 2
-    bird.animations.play "fly"
-    tubes.removeAll()
-    invs.removeAll()
+  state = { preload, create, update };
+  game = new Phaser.Game(WIDTH, HEIGHT, Phaser.CANVAS, parent, state);
+};
 
-  state =
-    preload: preload
-    create: create
-  
-  game = new Phaser.Game(WIDTH, HEIGHT, Phaser.CANVAS, parent, state, false, false)
-  
-WebFontConfig =
-  google:
-    families: [ 'Press+Start+2P::latin' ]
-  active: main
-
+WebFontConfig = {
+  google: { families: ["Press+Start+2P::latin"] },
+  active: main,
+};
